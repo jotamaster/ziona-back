@@ -1,98 +1,204 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# zionaback
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API backend en **NestJS** para la aplicación Ziona: PostgreSQL con **Prisma**, validación de entrada con **class-validator**, y configuración vía variables de entorno.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+| Pieza        | Uso |
+| ------------ | --- |
+| NestJS 11    | Framework HTTP, módulos, inyección de dependencias |
+| Prisma 7     | ORM y migraciones (`prisma/schema.prisma`, `prisma/migrations/`) |
+| PostgreSQL   | Base de datos (driver `pg` + adapter `@prisma/adapter-pg`) |
+| class-validator / class-transformer | Validación y transformación del body/query en los DTOs |
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Dependencias declaradas en `package.json` que aún no están integradas en módulos propios (p. ej. `cookie-parser`, `google-auth-library`) quedan disponibles para uso futuro.
 
-## Project setup
+## Requisitos
 
-```bash
-$ npm install
+- Node.js acorde a la versión del proyecto (ver `package.json` / engines si se añaden).
+- PostgreSQL accesible y una URL de conexión válida.
+
+## Configuración
+
+Crea un archivo `.env` en la raíz (no se versiona; ver `.gitignore`) con al menos:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
+JWT_SECRET="cambia-esto-por-un-secreto-largo"
+JWT_EXPIRES_IN="7d"
 ```
 
-## Compile and run the project
+Opcional:
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```env
+PORT=3000
 ```
 
-## Run tests
+`PrismaService` usa `ConfigService.getOrThrow('DATABASE_URL')` al arrancar.
+`AuthModule` usa `JWT_SECRET` para firmar/verificar y `JWT_EXPIRES_IN` para expiración del token.
+
+## Arranque
 
 ```bash
-# unit tests
-$ npm run test
+npm install
+npx prisma migrate deploy
+# en desarrollo, si aplicas cambios de schema:
+# npx prisma migrate dev
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run start:dev
 ```
 
-## Deployment
+La app escucha en `PORT` o **3000** por defecto (`src/main.ts`).
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Comandos útiles
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+| Comando | Descripción |
+| -------- | ----------- |
+| `npm run start:dev` | Desarrollo con recarga |
+| `npm run build` | Compila a `dist/` |
+| `npm run start:prod` | Ejecuta `node dist/src/main.js` |
+| `npm run lint` | ESLint |
+| `npm run test` | Tests unitarios (`*.spec.ts` en `src/`) |
+| `npm run test:e2e` | Tests e2e (`test/`) |
+| `npx prisma studio` | UI para inspeccionar datos |
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+## Comportamiento global
+
+- **`ConfigModule.forRoot({ isGlobal: true })`**: variables de entorno disponibles en toda la app (`src/app.module.ts`).
+- **`ValidationPipe` global** (`src/main.ts`): `whitelist`, `forbidNonWhitelisted`, `transform` — los DTOs definen qué entra y qué se rechaza.
+
+## Estructura del código
+
+```
+src/
+  app.module.ts       # Raíz: Config, Prisma, Users
+  main.ts
+  modules/
+    prisma/           # PrismaService (conexión + adapter pg)
+    auth/             # Intercambio de identidad + JWT propio del backend
+    users/            # CRUD parcial de usuarios (ver abajo)
+    homes/            # Homes: CRUD con membership owner/permiso por pertenencia
+    invitations/      # Invitations: flujo pending -> accepted/rejected/cancelled
+prisma/
+  schema.prisma       # Modelo de datos
+  migrations/         # Historial SQL (p. ej. init_shared_homes)
+prisma.config.ts      # Config de Prisma (schema, migraciones, DATABASE_URL)
+test/                 # e2e (app, users)
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## API implementada
 
-## Resources
+Base URL: `http://localhost:<PORT>` (por defecto 3000).
 
-Check out a few resources that may come in handy when working with NestJS:
+| Método | Ruta | Descripción |
+| ------ | ---- | ----------- |
+| `GET` | `/` | Respuesta de bienvenida del `AppService` (`AppController`) |
+| `POST` | `/auth/exchange` | Intercambia identidad autenticada del frontend (Google ya resuelto en Next) por JWT propio del backend. Crea/actualiza usuario interno por `googleSub`/`email`. |
+| `GET` | `/auth/me` | Devuelve usuario actual autenticado por `Authorization: Bearer <token>` (sin `x-user-id`). |
+| `POST` | `/users` | Crea usuario: body `{ email, name, imageUrl? }`. Responde **201** con el usuario creado. |
+| `GET` | `/users/by-public-code/:publicCode` | Busca usuario activo por `publicCode` (definido **antes** de `GET /users/:id` para no confundir segmentos). |
+| `GET` | `/users/:id` | Busca por UUID (`ParseUUIDPipe`). |
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Errores habituales del módulo usuarios: **409** si el email ya existe; **404** si no hay usuario; validación **400** si el body no cumple el DTO.
 
-## Support
+Lógica relevante en `UsersService`: normalización de email, generación de `publicCode` con reintentos ante colisión única (Prisma `P2002`), soft-delete considerado en lecturas (`deletedAt: null`).
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Para `Homes`, `Invitations` y `Tasks` (estado actual):
+- autenticación real con JWT (`Authorization: Bearer <token>`)
+- endpoints protegidos con `JwtAuthGuard`
+- el usuario actual se resuelve con `@CurrentUser()` y se usa `currentUser.id` en servicios
 
-## Stay in touch
+### Auth
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+`POST /auth/exchange` espera:
 
-## License
+```json
+{
+  "email": "user@example.com",
+  "name": "User Name",
+  "imageUrl": "https://...",
+  "googleSub": "google-sub-123"
+}
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Reglas:
+- valida DTO (`email`, `name`, `googleSub`, `imageUrl?`)
+- busca usuario activo por `googleSub`; si no existe, por `email`
+- si no existe, crea usuario con `publicCode` autogenerado
+- si existe, actualiza `name`, `imageUrl` y `googleSub`
+- emite JWT propio con payload `{ sub: user.id, email: user.email }`
+
+Respuesta:
+
+```json
+{
+  "accessToken": "<jwt>",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "User Name",
+    "imageUrl": "https://...",
+    "publicCode": "abc123...",
+    "googleSub": "google-sub-123"
+  }
+}
+```
+
+`GET /auth/me`:
+- requiere `Authorization: Bearer <jwt>`
+- valida token con `JwtAuthGuard`
+- retorna el usuario actual desde DB
+
+### Homes
+
+| Método | Ruta | Reglas principales |
+| ------ | ---- | ------------------ |
+| `POST` | `/homes` | Requiere JWT. Crea `Home` y automáticamente un `HomeMember` con rol `owner` en **transacción**. |
+| `GET` | `/homes` | Requiere JWT. Lista solo hogares donde existe membership activa para el usuario (`Home.deletedAt = null` y `HomeMember.deletedAt = null`). |
+| `GET` | `/homes/:homeId` | Requiere JWT. Devuelve detalle solo si el usuario pertenece al hogar (membership activa). |
+| `DELETE` | `/homes/:homeId` | Requiere JWT. Soft delete: pone `Home.deletedAt` y `deletedByUserId`. Solo el creador del hogar puede eliminar. |
+
+### Invitations
+
+| Método | Ruta | Reglas principales |
+| ------ | ---- | ------------------ |
+| `POST` | `/homes/:homeId/invitations` | Requiere JWT. Crea invitación `pending`. Requiere que el invitador pertenezca activamente al hogar. Busca invitado por `publicCode`. No permite auto-invitación ni invitar a alguien que ya sea miembro activo. No duplica invitaciones `pending` para `homeId + invitedUserId`. |
+| `GET` | `/invitations/received` | Requiere JWT. Lista invitaciones donde `invitedUserId = currentUser.id` (solo `deletedAt: null`) e incluye info mínima de `home` y `invitedBy`. |
+| `GET` | `/invitations/sent` | Requiere JWT. Lista invitaciones donde `invitedByUserId = currentUser.id` (solo `deletedAt: null`) e incluye info mínima de `home` y `invitedUser`. |
+| `PATCH` | `/invitations/:invitationId/accept` | Requiere JWT. Solo el invitado puede aceptar. Debe existir, no estar soft deleted y estar en `pending`. En **transacción**: cambia a `accepted`, setea `respondedAt` y crea/reactiva membership en `HomeMember` con rol `member`. Si ya existe membership activa, responde error. |
+| `PATCH` | `/invitations/:invitationId/reject` | Requiere JWT. Solo el invitado puede rechazar. Debe estar en `pending`. Cambia a `rejected` y setea `respondedAt`. |
+| `PATCH` | `/invitations/:invitationId/cancel` | Requiere JWT. Solo el usuario que envió puede cancelar. Debe estar en `pending`. Cambia a `cancelled` y setea `respondedAt`. |
+
+### Tasks
+
+| Método | Ruta | Reglas principales |
+| ------ | ---- | ------------------ |
+| `POST` | `/homes/:homeId/tasks` | Requiere JWT. Crea tarea en el hogar y permite asignación inicial opcional. |
+| `GET` | `/homes/:homeId/tasks` | Requiere JWT. Lista tareas activas del hogar con assignees activos. |
+| `GET` | `/homes/:homeId/tasks/:taskId` | Requiere JWT. Devuelve detalle de tarea activa. |
+| `PATCH` | `/homes/:homeId/tasks/:taskId` | Requiere JWT. Actualiza campos permitidos de tarea. |
+| `PATCH` | `/homes/:homeId/tasks/:taskId/complete` | Requiere JWT. Marca tarea como completada. |
+| `PATCH` | `/homes/:homeId/tasks/:taskId/reopen` | Requiere JWT. Reabre tarea completada. |
+| `DELETE` | `/homes/:homeId/tasks/:taskId` | Requiere JWT. Soft delete de tarea. |
+| `POST` | `/homes/:homeId/tasks/:taskId/assignees` | Requiere JWT. Asigna usuarios miembros del hogar a la tarea. |
+| `DELETE` | `/homes/:homeId/tasks/:taskId/assignees/:userId` | Requiere JWT. Desasigna usuario de la tarea (soft unassign). |
+| `GET` | `/homes/:homeId/tasks/:taskId/events` | Requiere JWT. Lista historial de eventos de la tarea. |
+
+## Base de datos (modelo)
+
+La migración inicial define un dominio amplio; en esta etapa, **User, Homes e Invitations** ya están expuestos por HTTP.
+
+- **User**: email y `publicCode` únicos, `googleSub` opcional y único, nombre, imagen opcional, `deletedAt` para borrado lógico.
+- **Home**, **HomeMember**, **Invitation**: hogares compartidos, miembros e invitaciones (roles `HomeRole`, estados `InvitationStatus`).
+- **Task**, **TaskAssignee**, **TaskEvent**: tareas por hogar, asignaciones y auditoría/eventos (`TaskPriority`, `TaskStatus`, `TaskEventType`).
+
+Detalle de campos e índices: `prisma/schema.prisma`.
+
+## Tests
+
+- **Unitarios**: junto al código (`*.spec.ts`), p. ej. `users.service.spec.ts`, `prisma.service.spec.ts`.
+- **E2E**: `test/app.e2e-spec.ts`, `test/users.e2e-spec.ts` (supertest contra la app Nest).
+
+## Licencia
+
+`UNLICENSED` (proyecto privado; ver `package.json`).

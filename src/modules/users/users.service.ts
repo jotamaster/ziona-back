@@ -1,18 +1,17 @@
-import { randomBytes } from 'node:crypto';
-
 import {
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
+import { generatePublicCode } from 'src/common/utils/public-code.util';
 
 import { PrismaService } from '../prisma/prisma.service';
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 
-const ACTIVE_USER = { deletedAt: null as null };
+const ACTIVE_USER = { deletedAt: null };
 
 @Injectable()
 export class UsersService {
@@ -23,7 +22,7 @@ export class UsersService {
     const maxAttempts = 5;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const publicCode = this.generatePublicCode();
+      const publicCode = generatePublicCode();
       try {
         const user = await this.prisma.user.create({
           data: {
@@ -35,10 +34,7 @@ export class UsersService {
         });
         return UserResponseDto.fromUser(user);
       } catch (e) {
-        if (
-          e instanceof PrismaClientKnownRequestError &&
-          e.code === 'P2002'
-        ) {
+        if (e instanceof PrismaClientKnownRequestError && e.code === 'P2002') {
           const fields = this.uniqueConstraintFields(e);
           if (fields.includes('email')) {
             throw new ConflictException('El email ya está registrado');
@@ -88,18 +84,14 @@ export class UsersService {
     return email.trim().toLowerCase();
   }
 
-  private generatePublicCode(): string {
-    return randomBytes(9).toString('base64url').slice(0, 16);
-  }
-
   /** Prisma 7 + driver adapter usa `constraint.fields`; versiones anteriores usaban `meta.target`. */
   private uniqueConstraintFields(
     error: PrismaClientKnownRequestError,
   ): string[] {
-    const meta = error.meta as Record<string, unknown> | undefined;
+    const meta = error.meta;
     const legacy = meta?.target;
     if (Array.isArray(legacy) && legacy.every((x) => typeof x === 'string')) {
-      return legacy as string[];
+      return legacy;
     }
     const adapter = meta?.driverAdapterError as
       | { cause?: { constraint?: { fields?: string[] } } }

@@ -1,0 +1,486 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "zionaback — API local",
+    "description": "Colección para probar zionaback (NestJS).\n\n**Antes de usar:**\n1. Arranca la API (`npm run start:dev`) y asegúrate de tener DB migrada.\n2. Usa **Auth → Exchange identity (POST /auth/exchange)** para obtener `accessToken` y datos del usuario.\n3. Guarda el token en la variable de colección `accessToken`.\n4. Usa `Authorization: Bearer {{accessToken}}` en Homes/Invitations/Tasks (ya no usan `x-user-id`).\n\n**Importar:** Postman → Import → este archivo. Bruno → Import Collection → Postman.\n\nVariables sugeridas en la colección: `baseUrl`, `accessToken`, `ownerUserId`, `memberUserId`, `homeId`, `taskId`, `invitationId`, `publicCodeMember`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "REEMPLAZA-CON-JWT-DEL-EXCHANGE" },
+    { "key": "ownerUserId", "value": "REEMPLAZA-UUID-DEL-USUARIO-OWNER" },
+    { "key": "memberUserId", "value": "REEMPLAZA-UUID-DEL-USUARIO-MIEMBRO" },
+    { "key": "publicCodeMember", "value": "REEMPLAZA-publicCode-DEL-INVITADO" },
+    { "key": "homeId", "value": "REEMPLAZA-UUID-DEL-HOGAR" },
+    { "key": "taskId", "value": "REEMPLAZA-UUID-DE-LA-TAREA" },
+    { "key": "invitationId", "value": "REEMPLAZA-UUID-DE-LA-INVITACION" }
+  ],
+  "item": [
+    {
+      "name": "App",
+      "item": [
+        {
+          "name": "Hello (GET /)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Comprueba que el servidor responde."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Exchange identity (POST /auth/exchange)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"name\": \"Ana Owner\",\n  \"imageUrl\": \"https://example.com/avatars/owner.png\",\n  \"googleSub\": \"google-sub-owner-123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/exchange",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "exchange"]
+            },
+            "description": "Intercambia identidad confiable del frontend por JWT propio del backend. Copia `accessToken` de la respuesta a la variable `accessToken`. También puedes guardar `user.id` en `ownerUserId`."
+          }
+        },
+        {
+          "name": "Me (GET /auth/me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Valida token JWT y devuelve el usuario actual desde DB."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create user (owner ejemplo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"name\": \"Ana Owner\",\n  \"imageUrl\": \"https://example.com/avatars/owner.png\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Crea un usuario. Guarda `id` → variable `ownerUserId`. Guarda `publicCode` si lo usarás en invitaciones."
+          }
+        },
+        {
+          "name": "Create user (miembro ejemplo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"member@example.com\",\n  \"name\": \"Luis Member\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Segundo usuario para invitaciones / asignaciones. Guarda `id` → `memberUserId` y `publicCode` → `publicCodeMember`."
+          }
+        },
+        {
+          "name": "Get user by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{ownerUserId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{ownerUserId}}"]
+            },
+            "description": "Detalle de usuario por UUID."
+          }
+        },
+        {
+          "name": "Get user by public code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/by-public-code/{{publicCodeMember}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "by-public-code", "{{publicCodeMember}}"]
+            },
+            "description": "Resuelve usuario por `publicCode` (útil antes de invitar)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Homes",
+      "item": [
+        {
+          "name": "Create home",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Casa de Ana\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/homes",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes"]
+            },
+            "description": "Crea hogar + membership `owner`. Copia `id` de la respuesta → `homeId`."
+          }
+        },
+        {
+          "name": "List my homes",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes"]
+            },
+            "description": "Lista hogares donde tienes membership activa."
+          }
+        },
+        {
+          "name": "Get home by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}"]
+            },
+            "description": "Detalle si perteneces al hogar."
+          }
+        },
+        {
+          "name": "Delete home (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}"]
+            },
+            "description": "Solo el creador del hogar. Soft delete."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invitations",
+      "item": [
+        {
+          "name": "Create invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"publicCode\": \"{{publicCodeMember}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/invitations",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "invitations"]
+            },
+            "description": "Invita por `publicCode` del usuario destino. Copia `id` de la invitación → `invitationId`."
+          }
+        },
+        {
+          "name": "List received invitations",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invitations/received",
+              "host": ["{{baseUrl}}"],
+              "path": ["invitations", "received"]
+            },
+            "description": "Como usuario invitado."
+          }
+        },
+        {
+          "name": "List sent invitations",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invitations/sent",
+              "host": ["{{baseUrl}}"],
+              "path": ["invitations", "sent"]
+            },
+            "description": "Invitaciones enviadas por el usuario actual."
+          }
+        },
+        {
+          "name": "Accept invitation",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invitations/{{invitationId}}/accept",
+              "host": ["{{baseUrl}}"],
+              "path": ["invitations", "{{invitationId}}", "accept"]
+            },
+            "description": "Solo el invitado."
+          }
+        },
+        {
+          "name": "Reject invitation",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invitations/{{invitationId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["invitations", "{{invitationId}}", "reject"]
+            },
+            "description": "Solo el invitado."
+          }
+        },
+        {
+          "name": "Cancel invitation",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invitations/{{invitationId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["invitations", "{{invitationId}}", "cancel"]
+            },
+            "description": "Solo quien envió la invitación."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create task (con asignados opcional)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Comprar leche\",\n  \"description\": \"Sin lactosa\",\n  \"priority\": \"high\",\n  \"dueDate\": \"2030-12-31T23:59:59.000Z\",\n  \"assigneeUserIds\": [\n    \"{{memberUserId}}\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks"]
+            },
+            "description": "`priority`: low | medium | high. `assigneeUserIds` opcional (deben ser miembros activos del hogar). Copia `id` → `taskId`."
+          }
+        },
+        {
+          "name": "List tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks"]
+            },
+            "description": "Tareas activas del hogar + assignees activos + `computedStatus`."
+          }
+        },
+        {
+          "name": "Get task detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}"]
+            },
+            "description": "Detalle de una tarea activa."
+          }
+        },
+        {
+          "name": "Update task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Comprar leche y pan\",\n  \"description\": null,\n  \"priority\": \"medium\",\n  \"dueDate\": \"2031-01-15T12:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}"]
+            },
+            "description": "Envía solo los campos que quieras cambiar. `description: null` limpia la descripción."
+          }
+        },
+        {
+          "name": "Complete task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "complete"]
+            },
+            "description": "Marca la tarea como completada."
+          }
+        },
+        {
+          "name": "Reopen task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/reopen",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "reopen"]
+            },
+            "description": "Vuelve a pending si estaba completada."
+          }
+        },
+        {
+          "name": "Delete task (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}"]
+            },
+            "description": "Soft delete + evento `task_deleted`."
+          }
+        },
+        {
+          "name": "Assign users to task",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\n    \"{{memberUserId}}\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/assignees",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "assignees"]
+            },
+            "description": "Miembros activos del hogar. Reactiva asignaciones previas si tenían `unassignedAt`."
+          }
+        },
+        {
+          "name": "Unassign user from task",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/assignees/{{memberUserId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "assignees", "{{memberUserId}}"]
+            },
+            "description": "Soft unassign (`unassignedAt = now`)."
+          }
+        },
+        {
+          "name": "List task events",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "events"]
+            },
+            "description": "Historial de eventos, `createdAt` descendente."
+          }
+        }
+      ]
+    }
+  ]
+}

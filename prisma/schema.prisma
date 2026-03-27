@@ -46,6 +46,7 @@ enum TaskEventType {
 model User {
   id         String    @id @default(uuid())
   email      String    @unique
+  googleSub  String?   @unique
   publicCode String    @unique
   name       String
   imageUrl   String?

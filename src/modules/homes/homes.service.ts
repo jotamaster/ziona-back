@@ -9,6 +9,7 @@ import { HomeRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { CreateHomeDto } from './dto/create-home.dto';
+import { HomeMemberResponseDto } from './dto/home-member-response.dto';
 import { HomeResponseDto } from './dto/home-response.dto';
 
 const ACTIVE_USER = { deletedAt: null };
@@ -95,6 +96,62 @@ export class HomesService {
     }
 
     return HomeResponseDto.fromHome(home);
+  }
+
+  async findMembersForUser(
+    userId: string,
+    homeId: string,
+  ): Promise<HomeMemberResponseDto[]> {
+    await this.ensureActiveUser(userId);
+
+    const home = await this.prisma.home.findFirst({
+      where: { id: homeId, ...ACTIVE_HOME },
+      select: { id: true },
+    });
+
+    if (!home) {
+      throw new NotFoundException('Hogar no encontrado');
+    }
+
+    const membership = await this.prisma.homeMember.findFirst({
+      where: {
+        homeId,
+        userId,
+        ...ACTIVE_MEMBERSHIP,
+      },
+      select: { id: true },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException('No tienes acceso a este hogar');
+    }
+
+    const rows = await this.prisma.homeMember.findMany({
+      where: {
+        homeId,
+        ...ACTIVE_MEMBERSHIP,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            publicCode: true,
+          },
+        },
+      },
+      orderBy: { joinedAt: 'asc' },
+    });
+
+    return rows.map((row) => {
+      const dto = new HomeMemberResponseDto();
+      dto.userId = row.user.id;
+      dto.name = row.user.name;
+      dto.publicCode = row.user.publicCode;
+      dto.role = row.role;
+      dto.joinedAt = row.joinedAt;
+      return dto;
+    });
   }
 
   async softDeleteForCreator(userId: string, homeId: string): Promise<void> {

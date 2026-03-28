@@ -14,6 +14,7 @@ import { CurrentUser, type AuthenticatedUser } from '../auth/decorators/current-
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 import { CreateHomeDto } from './dto/create-home.dto';
+import { HomeMemberResponseDto } from './dto/home-member-response.dto';
 import { HomeResponseDto } from './dto/home-response.dto';
 import { HomesService } from './homes.service';
 
@@ -34,6 +35,14 @@ export class HomesController {
   @Get()
   findAll(@CurrentUser() currentUser: AuthenticatedUser): Promise<HomeResponseDto[]> {
     return this.homesService.findAllForUser(currentUser.id);
+  }
+
+  @Get(':homeId/members')
+  findMembers(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('homeId', ParseUUIDPipe) homeId: string,
+  ): Promise<HomeMemberResponseDto[]> {
+    return this.homesService.findMembersForUser(currentUser.id, homeId);
   }
 
   @Get(':homeId')

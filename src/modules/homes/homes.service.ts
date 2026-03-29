@@ -137,6 +137,7 @@ export class HomesService {
             id: true,
             name: true,
             publicCode: true,
+            imageUrl: true,
           },
         },
       },
@@ -148,6 +149,7 @@ export class HomesService {
       dto.userId = row.user.id;
       dto.name = row.user.name;
       dto.publicCode = row.user.publicCode;
+      dto.imageUrl = row.user.imageUrl;
       dto.role = row.role;
       dto.joinedAt = row.joinedAt;
       return dto;

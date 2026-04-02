@@ -20,7 +20,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
 const ACTIVE_USER = { deletedAt: null as null };
-const ACTIVE_HOME = { deletedAt: null as null };
+const ACTIVE_SPACE = { deletedAt: null as null };
 const ACTIVE_MEMBERSHIP = { deletedAt: null as null };
 const ACTIVE_TASK = { deletedAt: null as null };
 const ACTIVE_ASSIGNEE = { unassignedAt: null as null };
@@ -42,7 +42,7 @@ export type TaskAssigneeRowDto = {
 
 export class TaskResponseDto {
   id: string;
-  homeId: string;
+  spaceId: string;
   title: string;
   description: string | null;
   priority: TaskPriority;
@@ -87,12 +87,12 @@ export class TasksService {
 
   async create(
     userId: string,
-    homeId: string,
+    spaceId: string,
     dto: CreateTaskDto,
   ): Promise<TaskResponseDto> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
     const title = dto.title.trim();
     if (!title) {
@@ -106,7 +106,7 @@ export class TasksService {
     const task = await this.prisma.$transaction(async (tx) => {
       const created = await tx.task.create({
         data: {
-          homeId,
+          spaceId,
           title,
           description: description ?? null,
           priority: dto.priority ?? TaskPriority.medium,
@@ -118,7 +118,7 @@ export class TasksService {
       });
 
       if (assigneeIds.length) {
-        await this.assertUsersAreActiveHomeMembers(tx, homeId, assigneeIds);
+        await this.assertUsersAreActiveSpaceMembers(tx, spaceId, assigneeIds);
         for (const uid of assigneeIds) {
           await tx.taskAssignee.create({
             data: {
@@ -158,16 +158,16 @@ export class TasksService {
       return created;
     });
 
-    return this.findOne(userId, homeId, task.id);
+    return this.findOne(userId, spaceId, task.id);
   }
 
-  async findAll(userId: string, homeId: string): Promise<TaskResponseDto[]> {
+  async findAll(userId: string, spaceId: string): Promise<TaskResponseDto[]> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
     const tasks = await this.prisma.task.findMany({
-      where: { homeId, ...ACTIVE_TASK },
+      where: { spaceId, ...ACTIVE_TASK },
       include: taskInclude,
       orderBy: { createdAt: 'desc' },
     });
@@ -178,15 +178,15 @@ export class TasksService {
 
   async findOne(
     userId: string,
-    homeId: string,
+    spaceId: string,
     taskId: string,
   ): Promise<TaskResponseDto> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
     const task = await this.prisma.task.findFirst({
-      where: { id: taskId, homeId, ...ACTIVE_TASK },
+      where: { id: taskId, spaceId, ...ACTIVE_TASK },
       include: taskInclude,
     });
     if (!task) {
@@ -198,15 +198,15 @@ export class TasksService {
 
   async update(
     userId: string,
-    homeId: string,
+    spaceId: string,
     taskId: string,
     dto: UpdateTaskDto,
   ): Promise<TaskResponseDto> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
-    const existing = await this.getActiveTaskForHome(homeId, taskId);
+    const existing = await this.getActiveTaskForSpace(spaceId, taskId);
 
     if (!this.hasUpdatePayload(dto)) {
       throw new BadRequestException('No hay campos para actualizar');
@@ -255,7 +255,7 @@ export class TasksService {
     }
 
     if (Object.keys(changes).length === 0) {
-      return this.findOne(userId, homeId, taskId);
+      return this.findOne(userId, spaceId, taskId);
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -273,19 +273,19 @@ export class TasksService {
       });
     });
 
-    return this.findOne(userId, homeId, taskId);
+    return this.findOne(userId, spaceId, taskId);
   }
 
   async complete(
     userId: string,
-    homeId: string,
+    spaceId: string,
     taskId: string,
   ): Promise<TaskResponseDto> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
-    const existing = await this.getActiveTaskForHome(homeId, taskId);
+    const existing = await this.getActiveTaskForSpace(spaceId, taskId);
     if (existing.status === TaskStatus.completed) {
       throw new ConflictException('La tarea ya esta completada');
     }
@@ -311,19 +311,19 @@ export class TasksService {
       });
     });
 
-    return this.findOne(userId, homeId, taskId);
+    return this.findOne(userId, spaceId, taskId);
   }
 
   async reopen(
     userId: string,
-    homeId: string,
+    spaceId: string,
     taskId: string,
   ): Promise<TaskResponseDto> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
-    const existing = await this.getActiveTaskForHome(homeId, taskId);
+    const existing = await this.getActiveTaskForSpace(spaceId, taskId);
     if (existing.status !== TaskStatus.completed) {
       throw new ConflictException('La tarea no esta completada');
     }
@@ -348,19 +348,19 @@ export class TasksService {
       });
     });
 
-    return this.findOne(userId, homeId, taskId);
+    return this.findOne(userId, spaceId, taskId);
   }
 
   async softDelete(
     userId: string,
-    homeId: string,
+    spaceId: string,
     taskId: string,
   ): Promise<void> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
-    const existing = await this.getActiveTaskForHome(homeId, taskId);
+    const existing = await this.getActiveTaskForSpace(spaceId, taskId);
     const now = new Date();
 
     await this.prisma.$transaction(async (tx) => {
@@ -385,18 +385,18 @@ export class TasksService {
 
   async assignUsers(
     userId: string,
-    homeId: string,
+    spaceId: string,
     taskId: string,
     dto: AssignUsersDto,
   ): Promise<TaskResponseDto> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
-    await this.getActiveTaskForHome(homeId, taskId);
+    await this.getActiveTaskForSpace(spaceId, taskId);
 
     const userIds = this.uniqueUuids(dto.userIds);
-    await this.assertUsersAreActiveHomeMembers(this.prisma, homeId, userIds);
+    await this.assertUsersAreActiveSpaceMembers(this.prisma, spaceId, userIds);
 
     await this.prisma.$transaction(async (tx) => {
       for (const uid of userIds) {
@@ -445,20 +445,20 @@ export class TasksService {
       });
     });
 
-    return this.findOne(userId, homeId, taskId);
+    return this.findOne(userId, spaceId, taskId);
   }
 
   async unassignUser(
     userId: string,
-    homeId: string,
+    spaceId: string,
     taskId: string,
     targetUserId: string,
   ): Promise<TaskResponseDto> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
-    await this.getActiveTaskForHome(homeId, taskId);
+    await this.getActiveTaskForSpace(spaceId, taskId);
 
     await this.prisma.$transaction(async (tx) => {
       const row = await tx.taskAssignee.findFirst({
@@ -494,19 +494,19 @@ export class TasksService {
       });
     });
 
-    return this.findOne(userId, homeId, taskId);
+    return this.findOne(userId, spaceId, taskId);
   }
 
   async findEvents(
     userId: string,
-    homeId: string,
+    spaceId: string,
     taskId: string,
   ): Promise<TaskEventResponseDto[]> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
-    await this.getActiveTaskForHome(homeId, taskId);
+    await this.getActiveTaskForSpace(spaceId, taskId);
 
     const events = await this.prisma.taskEvent.findMany({
       where: { taskId },
@@ -528,7 +528,7 @@ export class TasksService {
   private mapTaskToResponse(task: TaskWithRelations, now: Date): TaskResponseDto {
     return {
       id: task.id,
-      homeId: task.homeId,
+      spaceId: task.spaceId,
       title: task.title,
       description: task.description,
       priority: task.priority,
@@ -573,12 +573,12 @@ export class TasksService {
     return [...new Set(ids)];
   }
 
-  private async getActiveTaskForHome(
-    homeId: string,
+  private async getActiveTaskForSpace(
+    spaceId: string,
     taskId: string,
   ): Promise<Task> {
     const task = await this.prisma.task.findFirst({
-      where: { id: taskId, homeId, ...ACTIVE_TASK },
+      where: { id: taskId, spaceId, ...ACTIVE_TASK },
     });
     if (!task) {
       throw new NotFoundException('Tarea no encontrada');
@@ -596,41 +596,41 @@ export class TasksService {
     }
   }
 
-  private async ensureActiveHome(homeId: string): Promise<void> {
-    const home = await this.prisma.home.findFirst({
-      where: { id: homeId, ...ACTIVE_HOME },
+  private async ensureActiveSpace(spaceId: string): Promise<void> {
+    const space = await this.prisma.space.findFirst({
+      where: { id: spaceId, ...ACTIVE_SPACE },
       select: { id: true },
     });
-    if (!home) {
-      throw new NotFoundException('Hogar no encontrado');
+    if (!space) {
+      throw new NotFoundException('Espacio no encontrado');
     }
   }
 
   private async ensureActiveMembership(
-    homeId: string,
+    spaceId: string,
     userId: string,
   ): Promise<void> {
-    const membership = await this.prisma.homeMember.findFirst({
-      where: { homeId, userId, ...ACTIVE_MEMBERSHIP },
+    const membership = await this.prisma.spaceMember.findFirst({
+      where: { spaceId, userId, ...ACTIVE_MEMBERSHIP },
       select: { id: true },
     });
     if (!membership) {
-      throw new ForbiddenException('No perteneces a este hogar');
+      throw new ForbiddenException('No perteneces a este espacio');
     }
   }
 
-  private async assertUsersAreActiveHomeMembers(
+  private async assertUsersAreActiveSpaceMembers(
     db: Prisma.TransactionClient | PrismaService,
-    homeId: string,
+    spaceId: string,
     userIds: string[],
   ): Promise<void> {
     if (userIds.length === 0) {
       return;
     }
 
-    const members = await db.homeMember.findMany({
+    const members = await db.spaceMember.findMany({
       where: {
-        homeId,
+        spaceId,
         userId: { in: userIds },
         ...ACTIVE_MEMBERSHIP,
       },
@@ -639,7 +639,7 @@ export class TasksService {
 
     if (members.length !== userIds.length) {
       throw new BadRequestException(
-        'Uno o mas usuarios no son miembros activos del hogar',
+        'Uno o mas usuarios no son miembros activos del espacio',
       );
     }
   }

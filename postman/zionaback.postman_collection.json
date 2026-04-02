@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "zionaback — API local",
-    "description": "Colección para probar zionaback (NestJS).\n\n**Antes de usar:**\n1. Arranca la API (`npm run start:dev`) y asegúrate de tener DB migrada.\n2. Usa **Auth → Exchange identity (POST /auth/exchange)** para obtener `accessToken` y datos del usuario.\n3. Guarda el token en la variable de colección `accessToken`.\n4. Usa `Authorization: Bearer {{accessToken}}` en Homes/Invitations/Tasks (ya no usan `x-user-id`).\n\n**Importar:** Postman → Import → este archivo. Bruno → Import Collection → Postman.\n\nVariables sugeridas en la colección: `baseUrl`, `accessToken`, `ownerUserId`, `memberUserId`, `homeId`, `taskId`, `invitationId`, `publicCodeMember`.",
+    "description": "Colección para probar zionaback (NestJS).\n\n**Antes de usar:**\n1. Arranca la API (`npm run start:dev`) y asegúrate de tener DB migrada.\n2. Usa **Auth → Exchange identity (POST /auth/exchange)** para obtener `accessToken` y datos del usuario.\n3. Guarda el token en la variable de colección `accessToken`.\n4. Usa `Authorization: Bearer {{accessToken}}` en Spaces/Invitations/Tasks (ya no usan `x-user-id`).\n\n**Importar:** Postman → Import → este archivo. Bruno → Import Collection → Postman.\n\nVariables sugeridas en la colección: `baseUrl`, `accessToken`, `ownerUserId`, `memberUserId`, `spaceId`, `taskId`, `invitationId`, `publicCodeMember`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,7 +11,7 @@
     { "key": "ownerUserId", "value": "REEMPLAZA-UUID-DEL-USUARIO-OWNER" },
     { "key": "memberUserId", "value": "REEMPLAZA-UUID-DEL-USUARIO-MIEMBRO" },
     { "key": "publicCodeMember", "value": "REEMPLAZA-publicCode-DEL-INVITADO" },
-    { "key": "homeId", "value": "REEMPLAZA-UUID-DEL-HOGAR" },
+    { "key": "spaceId", "value": "REEMPLAZA-UUID-DEL-ESPACIO" },
     { "key": "taskId", "value": "REEMPLAZA-UUID-DE-LA-TAREA" },
     { "key": "invitationId", "value": "REEMPLAZA-UUID-DE-LA-INVITACION" }
   ],
@@ -143,10 +143,10 @@
       ]
     },
     {
-      "name": "Homes",
+      "name": "Spaces",
       "item": [
         {
-          "name": "Create home",
+          "name": "Create space",
           "request": {
             "method": "POST",
             "header": [
@@ -158,56 +158,56 @@
               "raw": "{\n  \"name\": \"Casa de Ana\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/homes",
+              "raw": "{{baseUrl}}/spaces",
               "host": ["{{baseUrl}}"],
-              "path": ["homes"]
+              "path": ["spaces"]
             },
-            "description": "Crea hogar + membership `owner`. Copia `id` de la respuesta → `homeId`."
+            "description": "Crea espacio + membership `owner`. Copia `id` de la respuesta → `spaceId`."
           }
         },
         {
-          "name": "List my homes",
+          "name": "List my spaces",
           "request": {
             "method": "GET",
             "header": [
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes",
+              "raw": "{{baseUrl}}/spaces",
               "host": ["{{baseUrl}}"],
-              "path": ["homes"]
+              "path": ["spaces"]
             },
-            "description": "Lista hogares donde tienes membership activa."
+            "description": "Lista espacios donde tienes membership activa."
           }
         },
         {
-          "name": "Get home by id",
+          "name": "Get space by id",
           "request": {
             "method": "GET",
             "header": [
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}"]
+              "path": ["spaces", "{{spaceId}}"]
             },
-            "description": "Detalle si perteneces al hogar."
+            "description": "Detalle si perteneces al espacio."
           }
         },
         {
-          "name": "Delete home (soft)",
+          "name": "Delete space (soft)",
           "request": {
             "method": "DELETE",
             "header": [
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}"]
+              "path": ["spaces", "{{spaceId}}"]
             },
-            "description": "Solo el creador del hogar. Soft delete."
+            "description": "Solo el creador del espacio. Soft delete."
           }
         }
       ]
@@ -228,9 +228,9 @@
               "raw": "{\n  \"publicCode\": \"{{publicCodeMember}}\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/invitations",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/invitations",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "invitations"]
+              "path": ["spaces", "{{spaceId}}", "invitations"]
             },
             "description": "Invita por `publicCode` del usuario destino. Copia `id` de la invitación → `invitationId`."
           }
@@ -328,11 +328,11 @@
               "raw": "{\n  \"title\": \"Comprar leche\",\n  \"description\": \"Sin lactosa\",\n  \"priority\": \"high\",\n  \"dueDate\": \"2030-12-31T23:59:59.000Z\",\n  \"assigneeUserIds\": [\n    \"{{memberUserId}}\"\n  ]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks"]
+              "path": ["spaces", "{{spaceId}}", "tasks"]
             },
-            "description": "`priority`: low | medium | high. `assigneeUserIds` opcional (deben ser miembros activos del hogar). Copia `id` → `taskId`."
+            "description": "`priority`: low | medium | high. `assigneeUserIds` opcional (deben ser miembros activos del espacio). Copia `id` → `taskId`."
           }
         },
         {
@@ -343,11 +343,11 @@
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks"]
+              "path": ["spaces", "{{spaceId}}", "tasks"]
             },
-            "description": "Tareas activas del hogar + assignees activos + `computedStatus`."
+            "description": "Tareas activas del espacio + assignees activos + `computedStatus`."
           }
         },
         {
@@ -358,9 +358,9 @@
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks/{{taskId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}"]
+              "path": ["spaces", "{{spaceId}}", "tasks", "{{taskId}}"]
             },
             "description": "Detalle de una tarea activa."
           }
@@ -378,9 +378,9 @@
               "raw": "{\n  \"title\": \"Comprar leche y pan\",\n  \"description\": null,\n  \"priority\": \"medium\",\n  \"dueDate\": \"2031-01-15T12:00:00.000Z\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks/{{taskId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}"]
+              "path": ["spaces", "{{spaceId}}", "tasks", "{{taskId}}"]
             },
             "description": "Envía solo los campos que quieras cambiar. `description: null` limpia la descripción."
           }
@@ -393,9 +393,9 @@
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/complete",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks/{{taskId}}/complete",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "complete"]
+              "path": ["spaces", "{{spaceId}}", "tasks", "{{taskId}}", "complete"]
             },
             "description": "Marca la tarea como completada."
           }
@@ -408,9 +408,9 @@
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/reopen",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks/{{taskId}}/reopen",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "reopen"]
+              "path": ["spaces", "{{spaceId}}", "tasks", "{{taskId}}", "reopen"]
             },
             "description": "Vuelve a pending si estaba completada."
           }
@@ -423,9 +423,9 @@
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks/{{taskId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}"]
+              "path": ["spaces", "{{spaceId}}", "tasks", "{{taskId}}"]
             },
             "description": "Soft delete + evento `task_deleted`."
           }
@@ -443,11 +443,11 @@
               "raw": "{\n  \"userIds\": [\n    \"{{memberUserId}}\"\n  ]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/assignees",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks/{{taskId}}/assignees",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "assignees"]
+              "path": ["spaces", "{{spaceId}}", "tasks", "{{taskId}}", "assignees"]
             },
-            "description": "Miembros activos del hogar. Reactiva asignaciones previas si tenían `unassignedAt`."
+            "description": "Miembros activos del espacio. Reactiva asignaciones previas si tenían `unassignedAt`."
           }
         },
         {
@@ -458,9 +458,9 @@
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/assignees/{{memberUserId}}",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks/{{taskId}}/assignees/{{memberUserId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "assignees", "{{memberUserId}}"]
+              "path": ["spaces", "{{spaceId}}", "tasks", "{{taskId}}", "assignees", "{{memberUserId}}"]
             },
             "description": "Soft unassign (`unassignedAt = now`)."
           }
@@ -473,9 +473,9 @@
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/homes/{{homeId}}/tasks/{{taskId}}/events",
+              "raw": "{{baseUrl}}/spaces/{{spaceId}}/tasks/{{taskId}}/events",
               "host": ["{{baseUrl}}"],
-              "path": ["homes", "{{homeId}}", "tasks", "{{taskId}}", "events"]
+              "path": ["spaces", "{{spaceId}}", "tasks", "{{taskId}}", "events"]
             },
             "description": "Historial de eventos, `createdAt` descendente."
           }

@@ -4,23 +4,23 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { HomeRole } from '@prisma/client';
+import { SpaceRole } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 
-import { CreateHomeDto } from './dto/create-home.dto';
-import { HomeMemberResponseDto } from './dto/home-member-response.dto';
-import { HomeResponseDto } from './dto/home-response.dto';
+import { CreateSpaceDto } from './dto/create-space.dto';
+import { SpaceMemberResponseDto } from './dto/space-member-response.dto';
+import { SpaceResponseDto } from './dto/space-response.dto';
 
 const ACTIVE_USER = { deletedAt: null };
-const ACTIVE_HOME = { deletedAt: null };
+const ACTIVE_SPACE = { deletedAt: null };
 const ACTIVE_MEMBERSHIP = { deletedAt: null };
 
 @Injectable()
-export class HomesService {
+export class SpacesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, dto: CreateHomeDto): Promise<HomeResponseDto> {
+  async create(userId: string, dto: CreateSpaceDto): Promise<SpaceResponseDto> {
     await this.ensureActiveUser(userId);
 
     const name = dto.name.trim();
@@ -28,34 +28,34 @@ export class HomesService {
       throw new BadRequestException('El nombre no puede estar vacío');
     }
 
-    const home = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.home.create({
+    const space = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.space.create({
         data: {
           name,
           createdByUserId: userId,
         },
       });
 
-      await tx.homeMember.create({
+      await tx.spaceMember.create({
         data: {
-          homeId: created.id,
+          spaceId: created.id,
           userId,
-          role: HomeRole.owner,
+          role: SpaceRole.owner,
         },
       });
 
       return created;
     });
 
-    return HomeResponseDto.fromHome(home);
+    return SpaceResponseDto.fromSpace(space);
   }
 
-  async findAllForUser(userId: string): Promise<HomeResponseDto[]> {
+  async findAllForUser(userId: string): Promise<SpaceResponseDto[]> {
     await this.ensureActiveUser(userId);
 
-    const homes = await this.prisma.home.findMany({
+    const spaces = await this.prisma.space.findMany({
       where: {
-        ...ACTIVE_HOME,
+        ...ACTIVE_SPACE,
         members: {
           some: {
             userId,
@@ -66,56 +66,56 @@ export class HomesService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return homes.map((h) => HomeResponseDto.fromHome(h));
+    return spaces.map((s) => SpaceResponseDto.fromSpace(s));
   }
 
   async findOneForUser(
     userId: string,
-    homeId: string,
-  ): Promise<HomeResponseDto> {
+    spaceId: string,
+  ): Promise<SpaceResponseDto> {
     await this.ensureActiveUser(userId);
 
-    const home = await this.prisma.home.findFirst({
-      where: { id: homeId, ...ACTIVE_HOME },
+    const space = await this.prisma.space.findFirst({
+      where: { id: spaceId, ...ACTIVE_SPACE },
     });
 
-    if (!home) {
-      throw new NotFoundException('Hogar no encontrado');
+    if (!space) {
+      throw new NotFoundException('Espacio no encontrado');
     }
 
-    const membership = await this.prisma.homeMember.findFirst({
+    const membership = await this.prisma.spaceMember.findFirst({
       where: {
-        homeId,
+        spaceId,
         userId,
         ...ACTIVE_MEMBERSHIP,
       },
     });
 
     if (!membership) {
-      throw new ForbiddenException('No tienes acceso a este hogar');
+      throw new ForbiddenException('No tienes acceso a este espacio');
     }
 
-    return HomeResponseDto.fromHome(home);
+    return SpaceResponseDto.fromSpace(space);
   }
 
   async findMembersForUser(
     userId: string,
-    homeId: string,
-  ): Promise<HomeMemberResponseDto[]> {
+    spaceId: string,
+  ): Promise<SpaceMemberResponseDto[]> {
     await this.ensureActiveUser(userId);
 
-    const home = await this.prisma.home.findFirst({
-      where: { id: homeId, ...ACTIVE_HOME },
+    const space = await this.prisma.space.findFirst({
+      where: { id: spaceId, ...ACTIVE_SPACE },
       select: { id: true },
     });
 
-    if (!home) {
-      throw new NotFoundException('Hogar no encontrado');
+    if (!space) {
+      throw new NotFoundException('Espacio no encontrado');
     }
 
-    const membership = await this.prisma.homeMember.findFirst({
+    const membership = await this.prisma.spaceMember.findFirst({
       where: {
-        homeId,
+        spaceId,
         userId,
         ...ACTIVE_MEMBERSHIP,
       },
@@ -123,12 +123,12 @@ export class HomesService {
     });
 
     if (!membership) {
-      throw new ForbiddenException('No tienes acceso a este hogar');
+      throw new ForbiddenException('No tienes acceso a este espacio');
     }
 
-    const rows = await this.prisma.homeMember.findMany({
+    const rows = await this.prisma.spaceMember.findMany({
       where: {
-        homeId,
+        spaceId,
         ...ACTIVE_MEMBERSHIP,
       },
       include: {
@@ -145,7 +145,7 @@ export class HomesService {
     });
 
     return rows.map((row) => {
-      const dto = new HomeMemberResponseDto();
+      const dto = new SpaceMemberResponseDto();
       dto.userId = row.user.id;
       dto.name = row.user.name;
       dto.publicCode = row.user.publicCode;
@@ -156,25 +156,25 @@ export class HomesService {
     });
   }
 
-  async softDeleteForCreator(userId: string, homeId: string): Promise<void> {
+  async softDeleteForCreator(userId: string, spaceId: string): Promise<void> {
     await this.ensureActiveUser(userId);
 
-    const home = await this.prisma.home.findFirst({
-      where: { id: homeId, ...ACTIVE_HOME },
+    const space = await this.prisma.space.findFirst({
+      where: { id: spaceId, ...ACTIVE_SPACE },
     });
 
-    if (!home) {
-      throw new NotFoundException('Hogar no encontrado');
+    if (!space) {
+      throw new NotFoundException('Espacio no encontrado');
     }
 
-    if (home.createdByUserId !== userId) {
+    if (space.createdByUserId !== userId) {
       throw new ForbiddenException(
-        'Solo el creador del hogar puede eliminarlo',
+        'Solo el creador del espacio puede eliminarlo',
       );
     }
 
-    await this.prisma.home.update({
-      where: { id: homeId },
+    await this.prisma.space.update({
+      where: { id: spaceId },
       data: {
         deletedAt: new Date(),
         deletedByUserId: userId,

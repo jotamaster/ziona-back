@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
-export class CreateHomeDto {
+export class CreateSpaceDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(80)

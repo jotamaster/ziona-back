@@ -77,7 +77,7 @@ src/
     prisma/           # PrismaService (conexión + adapter pg)
     auth/             # Intercambio de identidad + JWT propio del backend
     users/            # CRUD parcial de usuarios (ver abajo)
-    homes/            # Homes: CRUD con membership owner/permiso por pertenencia
+    spaces/           # Spaces: CRUD con membership owner/permiso por pertenencia
     invitations/      # Invitations: flujo pending -> accepted/rejected/cancelled
 prisma/
   schema.prisma       # Modelo de datos
@@ -103,7 +103,7 @@ Errores habituales del módulo usuarios: **409** si el email ya existe; **404** 
 
 Lógica relevante en `UsersService`: normalización de email, generación de `publicCode` con reintentos ante colisión única (Prisma `P2002`), soft-delete considerado en lecturas (`deletedAt: null`).
 
-Para `Homes`, `Invitations` y `Tasks` (estado actual):
+Para `Spaces`, `Invitations` y `Tasks` (estado actual):
 - autenticación real con JWT (`Authorization: Bearer <token>`)
 - endpoints protegidos con `JwtAuthGuard`
 - el usuario actual se resuelve con `@CurrentUser()` y se usa `currentUser.id` en servicios
@@ -149,23 +149,23 @@ Respuesta:
 - valida token con `JwtAuthGuard`
 - retorna el usuario actual desde DB
 
-### Homes
+### Spaces
 
 | Método | Ruta | Reglas principales |
 | ------ | ---- | ------------------ |
-| `POST` | `/homes` | Requiere JWT. Crea `Home` y automáticamente un `HomeMember` con rol `owner` en **transacción**. |
-| `GET` | `/homes` | Requiere JWT. Lista solo hogares donde existe membership activa para el usuario (`Home.deletedAt = null` y `HomeMember.deletedAt = null`). |
-| `GET` | `/homes/:homeId` | Requiere JWT. Devuelve detalle solo si el usuario pertenece al hogar (membership activa). |
-| `DELETE` | `/homes/:homeId` | Requiere JWT. Soft delete: pone `Home.deletedAt` y `deletedByUserId`. Solo el creador del hogar puede eliminar. |
+| `POST` | `/spaces` | Requiere JWT. Crea `Space` y automáticamente un `SpaceMember` con rol `owner` en **transacción**. |
+| `GET` | `/spaces` | Requiere JWT. Lista solo espacios donde existe membership activa para el usuario (`Space.deletedAt = null` y `SpaceMember.deletedAt = null`). |
+| `GET` | `/spaces/:spaceId` | Requiere JWT. Devuelve detalle solo si el usuario pertenece al espacio (membership activa). |
+| `DELETE` | `/spaces/:spaceId` | Requiere JWT. Soft delete: pone `Space.deletedAt` y `deletedByUserId`. Solo el creador del espacio puede eliminar. |
 
 ### Invitations
 
 | Método | Ruta | Reglas principales |
 | ------ | ---- | ------------------ |
-| `POST` | `/homes/:homeId/invitations` | Requiere JWT. Crea invitación `pending`. Requiere que el invitador pertenezca activamente al hogar. Busca invitado por `publicCode`. No permite auto-invitación ni invitar a alguien que ya sea miembro activo. No duplica invitaciones `pending` para `homeId + invitedUserId`. |
-| `GET` | `/invitations/received` | Requiere JWT. Lista invitaciones donde `invitedUserId = currentUser.id` (solo `deletedAt: null`) e incluye info mínima de `home` y `invitedBy`. |
-| `GET` | `/invitations/sent` | Requiere JWT. Lista invitaciones donde `invitedByUserId = currentUser.id` (solo `deletedAt: null`) e incluye info mínima de `home` y `invitedUser`. |
-| `PATCH` | `/invitations/:invitationId/accept` | Requiere JWT. Solo el invitado puede aceptar. Debe existir, no estar soft deleted y estar en `pending`. En **transacción**: cambia a `accepted`, setea `respondedAt` y crea/reactiva membership en `HomeMember` con rol `member`. Si ya existe membership activa, responde error. |
+| `POST` | `/spaces/:spaceId/invitations` | Requiere JWT. Crea invitación `pending`. Requiere que el invitador pertenezca activamente al espacio. Busca invitado por `publicCode`. No permite auto-invitación ni invitar a alguien que ya sea miembro activo. No duplica invitaciones `pending` para `spaceId + invitedUserId`. |
+| `GET` | `/invitations/received` | Requiere JWT. Lista invitaciones donde `invitedUserId = currentUser.id` (solo `deletedAt: null`) e incluye info mínima de `space` y `invitedBy`. |
+| `GET` | `/invitations/sent` | Requiere JWT. Lista invitaciones donde `invitedByUserId = currentUser.id` (solo `deletedAt: null`) e incluye info mínima de `space` y `invitedUser`. |
+| `PATCH` | `/invitations/:invitationId/accept` | Requiere JWT. Solo el invitado puede aceptar. Debe existir, no estar soft deleted y estar en `pending`. En **transacción**: cambia a `accepted`, setea `respondedAt` y crea/reactiva membership en `SpaceMember` con rol `member`. Si ya existe membership activa, responde error. |
 | `PATCH` | `/invitations/:invitationId/reject` | Requiere JWT. Solo el invitado puede rechazar. Debe estar en `pending`. Cambia a `rejected` y setea `respondedAt`. |
 | `PATCH` | `/invitations/:invitationId/cancel` | Requiere JWT. Solo el usuario que envió puede cancelar. Debe estar en `pending`. Cambia a `cancelled` y setea `respondedAt`. |
 
@@ -173,24 +173,24 @@ Respuesta:
 
 | Método | Ruta | Reglas principales |
 | ------ | ---- | ------------------ |
-| `POST` | `/homes/:homeId/tasks` | Requiere JWT. Crea tarea en el hogar y permite asignación inicial opcional. |
-| `GET` | `/homes/:homeId/tasks` | Requiere JWT. Lista tareas activas del hogar con assignees activos. |
-| `GET` | `/homes/:homeId/tasks/:taskId` | Requiere JWT. Devuelve detalle de tarea activa. |
-| `PATCH` | `/homes/:homeId/tasks/:taskId` | Requiere JWT. Actualiza campos permitidos de tarea. |
-| `PATCH` | `/homes/:homeId/tasks/:taskId/complete` | Requiere JWT. Marca tarea como completada. |
-| `PATCH` | `/homes/:homeId/tasks/:taskId/reopen` | Requiere JWT. Reabre tarea completada. |
-| `DELETE` | `/homes/:homeId/tasks/:taskId` | Requiere JWT. Soft delete de tarea. |
-| `POST` | `/homes/:homeId/tasks/:taskId/assignees` | Requiere JWT. Asigna usuarios miembros del hogar a la tarea. |
-| `DELETE` | `/homes/:homeId/tasks/:taskId/assignees/:userId` | Requiere JWT. Desasigna usuario de la tarea (soft unassign). |
-| `GET` | `/homes/:homeId/tasks/:taskId/events` | Requiere JWT. Lista historial de eventos de la tarea. |
+| `POST` | `/spaces/:spaceId/tasks` | Requiere JWT. Crea tarea en el espacio y permite asignación inicial opcional. |
+| `GET` | `/spaces/:spaceId/tasks` | Requiere JWT. Lista tareas activas del espacio con assignees activos. |
+| `GET` | `/spaces/:spaceId/tasks/:taskId` | Requiere JWT. Devuelve detalle de tarea activa. |
+| `PATCH` | `/spaces/:spaceId/tasks/:taskId` | Requiere JWT. Actualiza campos permitidos de tarea. |
+| `PATCH` | `/spaces/:spaceId/tasks/:taskId/complete` | Requiere JWT. Marca tarea como completada. |
+| `PATCH` | `/spaces/:spaceId/tasks/:taskId/reopen` | Requiere JWT. Reabre tarea completada. |
+| `DELETE` | `/spaces/:spaceId/tasks/:taskId` | Requiere JWT. Soft delete de tarea. |
+| `POST` | `/spaces/:spaceId/tasks/:taskId/assignees` | Requiere JWT. Asigna usuarios miembros del espacio a la tarea. |
+| `DELETE` | `/spaces/:spaceId/tasks/:taskId/assignees/:userId` | Requiere JWT. Desasigna usuario de la tarea (soft unassign). |
+| `GET` | `/spaces/:spaceId/tasks/:taskId/events` | Requiere JWT. Lista historial de eventos de la tarea. |
 
 ## Base de datos (modelo)
 
-La migración inicial define un dominio amplio; en esta etapa, **User, Homes e Invitations** ya están expuestos por HTTP.
+La migración inicial define un dominio amplio; en esta etapa, **User, Spaces e Invitations** ya están expuestos por HTTP.
 
 - **User**: email y `publicCode` únicos, `googleSub` opcional y único, nombre, imagen opcional, `deletedAt` para borrado lógico.
-- **Home**, **HomeMember**, **Invitation**: hogares compartidos, miembros e invitaciones (roles `HomeRole`, estados `InvitationStatus`).
-- **Task**, **TaskAssignee**, **TaskEvent**: tareas por hogar, asignaciones y auditoría/eventos (`TaskPriority`, `TaskStatus`, `TaskEventType`).
+- **Space**, **SpaceMember**, **Invitation**: espacios compartidos, miembros e invitaciones (roles `SpaceRole`, estados `InvitationStatus`).
+- **Task**, **TaskAssignee**, **TaskEvent**: tareas por espacio, asignaciones y auditoría/eventos (`TaskPriority`, `TaskStatus`, `TaskEventType`).
 
 Detalle de campos e índices: `prisma/schema.prisma`.
 

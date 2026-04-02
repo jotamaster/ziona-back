@@ -25,14 +25,14 @@ import {
 export class InvitationsController {
   constructor(private readonly invitationsService: InvitationsService) {}
 
-  @Post('homes/:homeId/invitations')
+  @Post('spaces/:spaceId/invitations')
   @HttpCode(HttpStatus.CREATED)
   create(
     @CurrentUser() currentUser: AuthenticatedUser,
-    @Param('homeId', ParseUUIDPipe) homeId: string,
+    @Param('spaceId', ParseUUIDPipe) spaceId: string,
     @Body() dto: CreateInvitationDto,
   ): Promise<InvitationResponseDto> {
-    return this.invitationsService.create(currentUser.id, homeId, dto);
+    return this.invitationsService.create(currentUser.id, spaceId, dto);
   }
 
   @Get('invitations/received')

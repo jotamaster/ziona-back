@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
-import { HomesModule } from './modules/homes/homes.module';
+import { SpacesModule } from './modules/spaces/spaces.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -15,7 +15,7 @@ import { UsersModule } from './modules/users/users.module';
     PrismaModule,
     AuthModule,
     UsersModule,
-    HomesModule,
+    SpacesModule,
     InvitationsModule,
     TasksModule,
   ],

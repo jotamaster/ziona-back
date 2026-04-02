@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Invitation, InvitationStatus, HomeRole } from '@prisma/client';
+import { Invitation, InvitationStatus, SpaceRole } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,16 +13,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 
 const ACTIVE_USER = { deletedAt: null };
-const ACTIVE_HOME = { deletedAt: null };
+const ACTIVE_SPACE = { deletedAt: null };
 const ACTIVE_MEMBERSHIP = { deletedAt: null };
 const ACTIVE_INVITATION = { deletedAt: null };
 
-type SimpleHome = { id: string; name: string };
+type SimpleSpace = { id: string; name: string };
 type SimpleUser = { id: string; name: string; publicCode: string };
 
 export class InvitationResponseDto {
   id: string;
-  homeId: string;
+  spaceId: string;
   invitedByUserId: string;
   invitedUserId: string;
   status: InvitationStatus;
@@ -32,7 +32,7 @@ export class InvitationResponseDto {
   static fromInvitation(invitation: Invitation): InvitationResponseDto {
     const dto = new InvitationResponseDto();
     dto.id = invitation.id;
-    dto.homeId = invitation.homeId;
+    dto.spaceId = invitation.spaceId;
     dto.invitedByUserId = invitation.invitedByUserId;
     dto.invitedUserId = invitation.invitedUserId;
     dto.status = invitation.status;
@@ -47,7 +47,7 @@ export class InvitationListItemDto {
   status: InvitationStatus;
   createdAt: Date;
   respondedAt: Date | null;
-  home: SimpleHome;
+  space: SimpleSpace;
   invitedBy?: SimpleUser;
   invitedUser?: SimpleUser;
 }
@@ -58,12 +58,12 @@ export class InvitationsService {
 
   async create(
     userId: string,
-    homeId: string,
+    spaceId: string,
     dto: CreateInvitationDto,
   ): Promise<InvitationResponseDto> {
     await this.ensureActiveUser(userId);
-    await this.ensureActiveHome(homeId);
-    await this.ensureActiveMembership(homeId, userId);
+    await this.ensureActiveSpace(spaceId);
+    await this.ensureActiveMembership(spaceId, userId);
 
     const publicCode = dto.publicCode.trim();
     if (!publicCode) {
@@ -82,17 +82,17 @@ export class InvitationsService {
       throw new BadRequestException('No puedes invitarte a ti mismo');
     }
 
-    const member = await this.prisma.homeMember.findFirst({
-      where: { homeId, userId: invitedUser.id, ...ACTIVE_MEMBERSHIP },
+    const member = await this.prisma.spaceMember.findFirst({
+      where: { spaceId, userId: invitedUser.id, ...ACTIVE_MEMBERSHIP },
       select: { id: true },
     });
     if (member) {
-      throw new ConflictException('El usuario ya pertenece al hogar');
+      throw new ConflictException('El usuario ya pertenece al espacio');
     }
 
     const duplicate = await this.prisma.invitation.findFirst({
       where: {
-        homeId,
+        spaceId,
         invitedUserId: invitedUser.id,
         status: InvitationStatus.pending,
         ...ACTIVE_INVITATION,
@@ -105,7 +105,7 @@ export class InvitationsService {
 
     const invitation = await this.prisma.invitation.create({
       data: {
-        homeId,
+        spaceId,
         invitedByUserId: userId,
         invitedUserId: invitedUser.id,
         status: InvitationStatus.pending,
@@ -121,7 +121,7 @@ export class InvitationsService {
     const invitations = await this.prisma.invitation.findMany({
       where: { invitedUserId: userId, ...ACTIVE_INVITATION },
       include: {
-        home: { select: { id: true, name: true } },
+        space: { select: { id: true, name: true } },
         invitedBy: { select: { id: true, name: true, publicCode: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -132,7 +132,7 @@ export class InvitationsService {
       status: invitation.status,
       createdAt: invitation.createdAt,
       respondedAt: invitation.respondedAt,
-      home: invitation.home,
+      space: invitation.space,
       invitedBy: invitation.invitedBy,
     }));
   }
@@ -143,7 +143,7 @@ export class InvitationsService {
     const invitations = await this.prisma.invitation.findMany({
       where: { invitedByUserId: userId, ...ACTIVE_INVITATION },
       include: {
-        home: { select: { id: true, name: true } },
+        space: { select: { id: true, name: true } },
         invitedUser: { select: { id: true, name: true, publicCode: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -154,7 +154,7 @@ export class InvitationsService {
       status: invitation.status,
       createdAt: invitation.createdAt,
       respondedAt: invitation.respondedAt,
-      home: invitation.home,
+      space: invitation.space,
       invitedUser: invitation.invitedUser,
     }));
   }
@@ -173,40 +173,38 @@ export class InvitationsService {
       throw new ConflictException('La invitacion ya fue respondida');
     }
 
-    await this.ensureActiveHome(invitation.homeId);
+    await this.ensureActiveSpace(invitation.spaceId);
 
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
-        const existingMember = await tx.homeMember.findUnique({
+        const existingMember = await tx.spaceMember.findUnique({
           where: {
-            homeId_userId: {
-              homeId: invitation.homeId,
+            spaceId_userId: {
+              spaceId: invitation.spaceId,
               userId,
             },
           },
         });
 
-        console.log('existingMember', existingMember);
-
         if (existingMember && existingMember.deletedAt == null) {
-          throw new ConflictException('El usuario ya pertenece al hogar');
+          throw new ConflictException('El usuario ya pertenece al espacio');
         }
 
         if (existingMember) {
-          await tx.homeMember.update({
+          await tx.spaceMember.update({
             where: { id: existingMember.id },
             data: {
-              role: HomeRole.member,
+              role: SpaceRole.member,
               joinedAt: new Date(),
               deletedAt: null,
             },
           });
         } else {
-          await tx.homeMember.create({
+          await tx.spaceMember.create({
             data: {
-              homeId: invitation.homeId,
+              spaceId: invitation.spaceId,
               userId,
-              role: HomeRole.member,
+              role: SpaceRole.member,
             },
           });
         }
@@ -226,7 +224,7 @@ export class InvitationsService {
         error instanceof PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        throw new ConflictException('El usuario ya pertenece al hogar');
+        throw new ConflictException('El usuario ya pertenece al espacio');
       }
       throw error;
     }
@@ -292,23 +290,23 @@ export class InvitationsService {
     }
   }
 
-  private async ensureActiveHome(homeId: string): Promise<void> {
-    const home = await this.prisma.home.findFirst({
-      where: { id: homeId, ...ACTIVE_HOME },
+  private async ensureActiveSpace(spaceId: string): Promise<void> {
+    const space = await this.prisma.space.findFirst({
+      where: { id: spaceId, ...ACTIVE_SPACE },
       select: { id: true },
     });
-    if (!home) {
-      throw new NotFoundException('Hogar no encontrado');
+    if (!space) {
+      throw new NotFoundException('Espacio no encontrado');
     }
   }
 
-  private async ensureActiveMembership(homeId: string, userId: string): Promise<void> {
-    const membership = await this.prisma.homeMember.findFirst({
-      where: { homeId, userId, ...ACTIVE_MEMBERSHIP },
+  private async ensureActiveMembership(spaceId: string, userId: string): Promise<void> {
+    const membership = await this.prisma.spaceMember.findFirst({
+      where: { spaceId, userId, ...ACTIVE_MEMBERSHIP },
       select: { id: true },
     });
     if (!membership) {
-      throw new ForbiddenException('No perteneces a este hogar');
+      throw new ForbiddenException('No perteneces a este espacio');
     }
   }
 

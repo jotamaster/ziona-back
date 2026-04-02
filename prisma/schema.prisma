@@ -9,7 +9,7 @@ datasource db {
   provider = "postgresql"
 }
 
-enum HomeRole {
+enum SpaceRole {
   owner
   member
 }
@@ -54,32 +54,32 @@ model User {
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
 
-  homesCreated          Home[]         @relation("HomeCreatedBy")
-  homesDeleted          Home[]         @relation("HomeDeletedBy")
-  homeMemberships       HomeMember[]
-  invitationsSent       Invitation[]   @relation("InvitationInvitedBy")
-  invitationsReceived   Invitation[]   @relation("InvitationInvitedUser")
-  tasksCreated          Task[]         @relation("TaskCreatedBy")
-  tasksUpdated          Task[]         @relation("TaskUpdatedBy")
-  tasksDeleted          Task[]         @relation("TaskDeletedBy")
-  tasksCompleted        Task[]         @relation("TaskCompletedBy")
-  taskAssignees         TaskAssignee[] @relation("TaskAssigneeUser")
-  taskAssignmentsMade   TaskAssignee[] @relation("TaskAssigneeAssignedBy")
-  taskEvents            TaskEvent[]    @relation("TaskEventActor")
+  spacesCreated          Space[]         @relation("SpaceCreatedBy")
+  spacesDeleted          Space[]         @relation("SpaceDeletedBy")
+  spaceMemberships       SpaceMember[]
+  invitationsSent        Invitation[]    @relation("InvitationInvitedBy")
+  invitationsReceived    Invitation[]    @relation("InvitationInvitedUser")
+  tasksCreated           Task[]          @relation("TaskCreatedBy")
+  tasksUpdated           Task[]          @relation("TaskUpdatedBy")
+  tasksDeleted           Task[]          @relation("TaskDeletedBy")
+  tasksCompleted         Task[]          @relation("TaskCompletedBy")
+  taskAssignees          TaskAssignee[]   @relation("TaskAssigneeUser")
+  taskAssignmentsMade    TaskAssignee[]   @relation("TaskAssigneeAssignedBy")
+  taskEvents             TaskEvent[]      @relation("TaskEventActor")
 }
 
-model Home {
-  id                String    @id @default(uuid())
-  name              String
-  createdByUserId   String
-  deletedByUserId   String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedAt         DateTime?
+model Space {
+  id              String    @id @default(uuid())
+  name            String
+  createdByUserId String
+  deletedByUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
 
-  createdByUser User           @relation("HomeCreatedBy", fields: [createdByUserId], references: [id])
-  deletedByUser User?          @relation("HomeDeletedBy", fields: [deletedByUserId], references: [id])
-  members       HomeMember[]
+  createdByUser User           @relation("SpaceCreatedBy", fields: [createdByUserId], references: [id])
+  deletedByUser User?          @relation("SpaceDeletedBy", fields: [deletedByUserId], references: [id])
+  members       SpaceMember[]
   invitations   Invitation[]
   tasks         Task[]
 
@@ -87,49 +87,49 @@ model Home {
   @@index([deletedByUserId])
 }
 
-model HomeMember {
-  id        String    @id @default(uuid())
-  homeId    String
+model SpaceMember {
+  id        String     @id @default(uuid())
+  spaceId   String
   userId    String
-  role      HomeRole
-  joinedAt  DateTime  @default(now())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  role      SpaceRole
+  joinedAt  DateTime   @default(now())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   deletedAt DateTime?
 
-  home Home @relation(fields: [homeId], references: [id])
-  user User @relation(fields: [userId], references: [id])
+  space Space @relation(fields: [spaceId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
 
-  @@unique([homeId, userId])
+  @@unique([spaceId, userId])
   @@index([userId])
-  @@index([homeId])
+  @@index([spaceId])
 }
 
 model Invitation {
-  id               String           @id @default(uuid())
-  homeId           String
-  invitedByUserId  String
-  invitedUserId    String
-  status           InvitationStatus @default(pending)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  respondedAt      DateTime?
-  expiresAt        DateTime?
-  deletedAt        DateTime?
+  id              String           @id @default(uuid())
+  spaceId         String
+  invitedByUserId String
+  invitedUserId   String
+  status          InvitationStatus @default(pending)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  respondedAt     DateTime?
+  expiresAt       DateTime?
+  deletedAt       DateTime?
 
-  home        Home @relation(fields: [homeId], references: [id])
-  invitedBy   User @relation("InvitationInvitedBy", fields: [invitedByUserId], references: [id])
-  invitedUser User @relation("InvitationInvitedUser", fields: [invitedUserId], references: [id])
+  space       Space @relation(fields: [spaceId], references: [id])
+  invitedBy   User  @relation("InvitationInvitedBy", fields: [invitedByUserId], references: [id])
+  invitedUser User  @relation("InvitationInvitedUser", fields: [invitedUserId], references: [id])
 
-  @@index([homeId, status])
+  @@index([spaceId, status])
   @@index([invitedUserId])
   @@index([invitedByUserId])
   @@index([status])
 }
 
 model Task {
-  id                String        @id @default(uuid())
-  homeId            String
+  id                String       @id @default(uuid())
+  spaceId           String
   title             String
   description       String?
   priority          TaskPriority @default(medium)
@@ -140,21 +140,21 @@ model Task {
   updatedByUserId   String
   deletedByUserId   String?
   completedByUserId String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
   deletedAt         DateTime?
   completedAt       DateTime?
 
-  home Home @relation(fields: [homeId], references: [id])
-  createdByUser User @relation("TaskCreatedBy", fields: [createdByUserId], references: [id])
-  updatedByUser User @relation("TaskUpdatedBy", fields: [updatedByUserId], references: [id])
-  deletedByUser User? @relation("TaskDeletedBy", fields: [deletedByUserId], references: [id])
+  space           Space @relation(fields: [spaceId], references: [id])
+  createdByUser   User  @relation("TaskCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser   User  @relation("TaskUpdatedBy", fields: [updatedByUserId], references: [id])
+  deletedByUser   User? @relation("TaskDeletedBy", fields: [deletedByUserId], references: [id])
   completedByUser User? @relation("TaskCompletedBy", fields: [completedByUserId], references: [id])
   assignees       TaskAssignee[]
   events          TaskEvent[]
 
-  @@index([homeId])
-  @@index([homeId, status])
+  @@index([spaceId])
+  @@index([spaceId, status])
   @@index([dueDate])
   @@index([createdByUserId])
   @@index([updatedByUserId])

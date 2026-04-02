@@ -1,10 +1,10 @@
-import { HomeRole } from '@prisma/client';
+import { SpaceRole } from '@prisma/client';
 
-export class HomeMemberResponseDto {
+export class SpaceMemberResponseDto {
   userId: string;
   name: string;
   publicCode: string;
   imageUrl: string | null;
-  role: HomeRole;
+  role: SpaceRole;
   joinedAt: Date;
 }
